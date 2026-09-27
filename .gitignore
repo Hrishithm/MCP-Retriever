@@ -1,0 +1,23 @@
+Set-Content -Path .gitignore -Value @"
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# Environment variables & secrets
+.env
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Notepad / text notes
+*.txt
+*.notepad
+notes/
+
+# OS artifacts
+Thumbs.db
+.DS_Store
+"@
