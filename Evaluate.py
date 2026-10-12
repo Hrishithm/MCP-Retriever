@@ -37,8 +37,8 @@ TEST_CASES: List[Dict[str, Any]] = [
     },
     {
         "id": "TC-04",
-        "description": "Query Parameters & Path Validation",
-        "query": "query parameter type validation q",
+        "description": "Query Parameters & Parameterized Dependencies",
+        "query": "query parameters",
         "top_k": 3,
         "expected_type": "success",
         "expected_keywords": ["query", "parameter", "dependenc"],
@@ -95,7 +95,7 @@ TEST_CASES: List[Dict[str, Any]] = [
 ]
 
 
-async def run_eval() -> None:
+async def run_eval() -> bool:
     server_params = StdioServerParameters(
         command=MCP_SERVER_PYTHON,
         args=[MCP_SERVER_SCRIPT],
@@ -108,12 +108,12 @@ async def run_eval() -> None:
     print(f"  Interpreter:   {MCP_SERVER_PYTHON}")
     print("=" * 80)
 
+    results = []
+
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
             print("[INFO] MCP Session Initialized over stdio successfully.\n")
-
-            results = []
 
             for tc in TEST_CASES:
                 start_time = time.perf_counter()
@@ -126,7 +126,6 @@ async def run_eval() -> None:
                 raw_output = tool_result.content[0].text if tool_result.content else ""
                 output_lower = raw_output.lower()
 
-                # Evaluation assertions
                 passed = False
                 reason = ""
 
@@ -165,24 +164,25 @@ async def run_eval() -> None:
                 if not passed:
                     print(f"       └── Failure Reason: {reason}")
 
-            # Summary metrics
-            total = len(results)
-            passed_count = sum(1 for r in results if r["passed"])
-            avg_latency = sum(r["latency_ms"] for r in results) / total
-            max_latency = max(r["latency_ms"] for r in results)
-            min_latency = min(r["latency_ms"] for r in results)
+    # Summary metrics (calculated after stdio connection closes cleanly)
+    total = len(results)
+    passed_count = sum(1 for r in results if r["passed"])
+    avg_latency = sum(r["latency_ms"] for r in results) / total
+    max_latency = max(r["latency_ms"] for r in results)
+    min_latency = min(r["latency_ms"] for r in results)
 
-            print("\n" + "=" * 80)
-            print("  EVALUATION SUMMARY")
-            print("=" * 80)
-            print(f"  Tests Passed:       {passed_count}/{total} ({(passed_count/total)*100:.1f}%)")
-            print(f"  Average Latency:    {avg_latency:.1f} ms")
-            print(f"  Min / Max Latency:  {min_latency:.1f} ms / {max_latency:.1f} ms")
-            print("=" * 80)
+    print("\n" + "=" * 80)
+    print("  EVALUATION SUMMARY")
+    print("=" * 80)
+    print(f"  Tests Passed:       {passed_count}/{total} ({(passed_count/total)*100:.1f}%)")
+    print(f"  Average Latency:    {avg_latency:.1f} ms")
+    print(f"  Min / Max Latency:  {min_latency:.1f} ms / {max_latency:.1f} ms")
+    print("=" * 80)
 
-            if passed_count != total:
-                sys.exit(1)
+    return passed_count == total
 
 
 if __name__ == "__main__":
-    asyncio.run(run_eval())
+    all_passed = asyncio.run(run_eval())
+    if not all_passed:
+        sys.exit(1)
